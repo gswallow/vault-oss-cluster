@@ -136,10 +136,22 @@ variable "nlb_subnet_tag" {
   default     = {}
 }
 
+variable "route53_create_record" {
+  type        = bool
+  description = "Create a route 53 record that points to an NLB?"
+  default     = true
+}
+
+variable "route53_use_public_zone" {
+  type        = bool
+  description = "Use a public Route 53 zone?"
+  default     = true
+}
+
 locals {
   prefix             = replace(lower("${var.org}-${var.env}-${var.project}"), "_", "-")
   tls_cert_org       = var.tls_cert_org == null ? var.org : var.tls_cert_org
-  vault_cluster_fqdn = var.vault_cluster_fqdn == null ? "vault-${var.env}-${var.vault_cluster_id}.${var.tls_cert_domain}" : var.vault_cluster_fqdn
+  vault_cluster_fqdn = var.vault_cluster_fqdn == null ? "vault-${var.vault_cluster_id}.${var.env}.${var.tls_cert_domain}" : var.vault_cluster_fqdn
   nlb_subnet_tag     = var.nlb_subnet_tag == {} ? var.vault_subnet_tag : var.nlb_subnet_tag
   tags = merge({
     "Organization:environment" = var.env,

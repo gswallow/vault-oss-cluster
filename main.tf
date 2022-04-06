@@ -255,3 +255,18 @@ resource "aws_lb_listener" "vault" {
     target_group_arn = aws_lb_target_group.vault.0.arn
   }
 }
+
+resource "aws_route53_record" "vault" {
+  count   = var.route53_create_record ? var.nlb_create ? 1 : 0 : 0
+  zone_id = data.aws_route53_zone.selected.0.id
+  name    = "${local.vault_cluster_fqdn}."
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.vault.0.dns_name
+    zone_id                = aws_lb.vault.0.zone_id
+    evaluate_target_health = false
+  }
+}
+
+

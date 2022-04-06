@@ -37,6 +37,13 @@ data "aws_subnets" "nlb" {
   }
 }
 
+data "aws_route53_zone" "selected" {
+  count        = var.route53_create_record ? 1 : 0
+  name         = "${var.tls_cert_domain}."
+  private_zone = var.route53_use_public_zone ? false : true
+  vpc_id       = var.route53_use_public_zone ? null : data.aws_vpc.selected.id
+}
+
 data "aws_ssm_parameter" "amazon_linux_ami" {
   name = "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
 }
