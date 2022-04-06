@@ -29,15 +29,15 @@ variable "tags" {
 }
 
 variable "security_group_allow_ssh_cidr" {
-  type = list(string)
+  type        = list(string)
   description = "A list of CIDR blocks to allow SSH access"
-  default = [ "0.0.0.0/0" ]
+  default     = ["0.0.0.0/0"]
 }
 
 variable "security_group_allow_https_8200_cidr" {
-  type = list(string)
+  type        = list(string)
   description = "A list of CIDR blocks to allow SSH access"
-  default = [ "0.0.0.0/0" ]
+  default     = ["0.0.0.0/0"]
 }
 
 variable "vault_cluster_id" {
@@ -105,23 +105,42 @@ variable "vpc_use_default" {
   description = "Use the default VPC"
   default     = true
 }
-  
+
 variable "vpc_id" {
   type        = string
   description = "An optional ID of a VPC in which to launch vault"
   default     = null
 }
 
-variable "vpc_subnet_tag" {
+variable "vault_subnet_tag" {
   type        = map(string)
-  description = "An optional tag to identify subnets (e.g. VPC:tier = private vs public)"
+  description = "An optional tag to identify subnets for vault nodes (e.g. VPC:tier = private vs public)"
   default     = {}
 }
-  
+
+variable "nlb_create" {
+  type        = bool
+  description = "Create a network load balancer?"
+  default     = true
+}
+
+variable "nlb_faces_public" {
+  type        = bool
+  description = "Create a public facing load balancer?"
+  default     = true
+}
+
+variable "nlb_subnet_tag" {
+  type        = map(string)
+  description = "An optional tag to identify subnets for NLBs (e.g. VPC:tier = private vs public)"
+  default     = {}
+}
+
 locals {
   prefix             = replace(lower("${var.org}-${var.env}-${var.project}"), "_", "-")
   tls_cert_org       = var.tls_cert_org == null ? var.org : var.tls_cert_org
   vault_cluster_fqdn = var.vault_cluster_fqdn == null ? "vault-${var.env}-${var.vault_cluster_id}.${var.tls_cert_domain}" : var.vault_cluster_fqdn
+  nlb_subnet_tag     = var.nlb_subnet_tag == {} ? var.vault_subnet_tag : var.nlb_subnet_tag
   tags = merge({
     "Organization:environment" = var.env,
     "Organization:name"        = var.org,

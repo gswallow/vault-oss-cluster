@@ -7,17 +7,32 @@ data "aws_vpc" "selected" {
   id      = var.vpc_id
 }
 
-data "aws_subnets" "selected" {
+data "aws_subnets" "vault" {
   filter {
-    name = "vpc-id"
-    values = [ data.aws_vpc.selected.id ]
+    name   = "vpc-id"
+    values = [data.aws_vpc.selected.id]
   }
 
   dynamic "filter" {
-    for_each = tomap(var.vpc_subnet_tag)
+    for_each = tomap(var.vault_subnet_tag)
     content {
-      name = "tag:${filter.key}"
-      values = [ filter.value ]
+      name   = "tag:${filter.key}"
+      values = [filter.value]
+    }
+  }
+}
+
+data "aws_subnets" "nlb" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.selected.id]
+  }
+
+  dynamic "filter" {
+    for_each = tomap(local.nlb_subnet_tag)
+    content {
+      name   = "tag:${filter.key}"
+      values = [filter.value]
     }
   }
 }
