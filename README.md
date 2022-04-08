@@ -19,3 +19,8 @@ retrieve the values.
 The chief reason this project exists is to toy with the auto-unseal feature and
 the AWS secrets engine.  Everything is in "experimental" stage right now and you
 may use this project at your own peril.
+
+### CA Certs
+Mac users: you can import the CA cert to your system keychain using Keychain
+Access.  This will allow you to trust the CA cert, and actually visit the vault
+cluster you've stood up.
