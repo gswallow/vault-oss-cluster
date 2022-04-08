@@ -15,10 +15,13 @@ VAULT_CLUSTER_ID=$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
 VAULT_CLUSTER_FQDN=$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
   http://169.254.169.254/latest/meta-data/tags/instance/vault:cluster-fqdn)
 
-VAULT_NODE_ID=$(curl -H "X-aws-ec2-metadata-token: $${TOKEN}" \
+VAULT_NODE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
   http://169.254.169.254/latest/meta-data/tags/instance/vault:node-id)
 
-VAULT_KMS_KEY_ID=$(curl -H "X-aws-ec2-metadata-token: $${TOKEN}" \
+VAULT_MASTER_NODE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
+  http://169.254.169.254/latest/meta-data/tags/instance/vault:master-node-id)
+
+VAULT_KMS_KEY_ID=$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
   http://169.254.169.254/latest/meta-data/tags/instance/vault:kms-key-id)
 
 AWS_AZ=$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
@@ -26,6 +29,25 @@ AWS_AZ=$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
 
 # Chop the last character off of the AZ in which the instance was placed
 AWS_REGION=$${AWS_AZ:0:$[$${#AWS_AZ} - 1]}
+
+replica_region=${replica_region}
+replica_region=$${replica_region:=us-west-2}
+
+function create_or_update_secret() {
+  region=$1
+  aws secretsmanager create-secret \
+   --name /vault/init/$${VAULT_CLUSTER_FQDN} \
+   --secret-string "'$(cat $${TEMPDIR}/$${VAULT_CLUSTER_FQDN}-init.json)'" \
+   --region $region || :
+  if [ $? -eq 255 ]; then
+    hash=$(echo $RANDOM | md5sum)
+    aws secretsmanager put-secret-value \
+     --client-request-token $hash \
+     --secret-string "'$(cat $${TEMPDIR}/$${VAULT_CLUSTER_FQDN}-init.json)'" \
+     --secret-id /vault/init/$${VAULT_CLUSTER_FQDN} \
+     --region $region
+  fi
+}
 
 ########################################
 # Install packages
@@ -191,3 +213,25 @@ echo "export VAULT_CAPATH=/opt/vault/tls/ca.crt" >> /etc/profile.d/vault.sh \
 ########################################
 systemctl enable vault
 systemctl start vault
+
+########################################
+# Initialize vault
+########################################
+sleep 20 
+if ( ! vault operator init -status ); then
+  if [ "$${VAULT_NODE_ID}" == "$${VAULT_MASTER_NODE_ID}" ]; then
+    TEMPDIR=$(mktemp -d)
+    for i in $(seq 60); do 
+      VAULT_CAPATH=/opt/vault/tls/ca.crt vault operator init -format=json \
+       > $${TEMPDIR}/$${VAULT_CLUSTER_FQDN}-init.json \
+       && break
+       sleep 5
+    done
+
+    if [ $? -eq 0 ]; then
+      create_or_update_secret $AWS_REGION \
+      && create_or_update_secret $replica_region \
+      && rm -rf $${TEMPDIR}
+    fi
+  fi
+fi

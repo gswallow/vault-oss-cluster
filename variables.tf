@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "replica_region" {
+  type        = string
+  description = "The AWS region in which to create resources"
+  default     = "us-west-2"
+}
+
 variable "env" {
   type        = string
   description = "The name of the environment, for use in AWS resource tags"
@@ -43,7 +49,7 @@ variable "security_group_allow_https_8200_cidr" {
 variable "vault_cluster_id" {
   type        = string
   description = "The cluster ID to use to auto-join nodes"
-  default     = "cluster1"
+  default     = "cluster3"
 }
 
 variable "vault_cluster_fqdn" {
@@ -62,6 +68,12 @@ variable "vault_cluster_instance_type" {
   type        = string
   description = "The instance type to launch"
   default     = "t3.micro"
+}
+
+variable "vault_master_node_id" {
+  type        = string
+  description = "The 'master' node ID (first node of the cluster)"
+  default     = "node0"
 }
 
 variable "vault_root_volume_size" {

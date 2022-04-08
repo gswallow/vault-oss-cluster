@@ -8,16 +8,13 @@ own VPC) is untested.
 Optionally, you can create a network load balancer and point a route 53 record at
 it using the Route 53 zone of your choice.  
 
-The `vault operator init` sequence is unimplemented until I decide what to do with
-the resulting keys and tokens.  To initialize a vault, ssh into a vault node as
-`ec2-user` and run:
-
-```
-sudo su - 
-vault operator init
-```
-
-Be sure to keep your root token and unseal keys!
+Root tokens will be stored in AWS Secrets Manager, in a primary and secondary AWS
+region, under the "/vault/init/cluster-name" secret parameter. CLI commands can
+be run by setting the `VAULT_TOKEN` environment variable on one of the nodes. The
+`VAULT_CAPATH` environment variable should be set for you (per 
+`/etc/profile.d/vault.sh`).  For security reasons, the vault instances have the
+ability to create and update parameters in AWS Secrets Manager, but not to 
+retrieve the values.
 
 The chief reason this project exists is to toy with the auto-unseal feature and
 the AWS secrets engine.  Everything is in "experimental" stage right now and you

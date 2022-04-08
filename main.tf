@@ -85,6 +85,28 @@ resource "aws_iam_role_policy" "vault_auto_unseal" {
   })
 }
 
+resource "aws_iam_role_policy" "store_vault_unseal_keys" {
+  name = "${local.prefix}-${var.vault_cluster_id}-store-unseal-keys"
+  role = aws_iam_role.vault.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action   = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:ReplicateSecretToRegions"
+        ]
+        Effect   = "Allow"
+        Resource = [
+          "arn:${data.aws_partition.current.partition}:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:/vault/init/*",
+          "arn:${data.aws_partition.current.partition}:secretsmanager:${var.replica_region}:${data.aws_caller_identity.current.account_id}:secret:/vault/init/*"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "vault_describe_instances" {
   name = "${local.prefix}-${var.vault_cluster_id}-describe-instances"
   role = aws_iam_role.vault.id
@@ -147,7 +169,8 @@ resource "aws_launch_template" "vault" {
       vault_cluster_fqdn           = local.vault_cluster_fqdn,
       tls_cert_country_name        = var.tls_cert_country_name,
       tls_cert_state_province_name = var.tls_cert_state_province_name,
-      tls_cert_locality_name       = var.tls_cert_locality_name
+      tls_cert_locality_name       = var.tls_cert_locality_name,
+      replica_region               = var.replica_region
   }))
 
   block_device_mappings {
@@ -190,10 +213,11 @@ resource "aws_launch_template" "vault" {
   tag_specifications {
     resource_type = "instance"
     tags = merge(local.tags, {
-      "vault:node-id"      = "node${count.index}",
-      "vault:kms-key-id"   = aws_kms_key.vault.arn,
-      "vault:cluster-fqdn" = local.vault_cluster_fqdn,
-      Name                 = "${local.prefix}-vault-${var.vault_cluster_id}-node${count.index}"
+      "vault:node-id"        = "node${count.index}",
+      "vault:kms-key-id"     = aws_kms_key.vault.arn,
+      "vault:cluster-fqdn"   = local.vault_cluster_fqdn,
+      "vault:master-node-id" = var.vault_master_node_id,
+      Name                   = "${local.prefix}-vault-${var.vault_cluster_id}-node${count.index}"
     })
   }
 }
