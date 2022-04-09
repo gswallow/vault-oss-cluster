@@ -130,6 +130,12 @@ variable "vault_subnet_tag" {
   default     = {}
 }
 
+variable "vault_third_party_account_roles" {
+  type        = list(string)
+  description = "A list of ARNs of third party account roles that vault can assume on behalf of customers"
+  default     = []
+}
+
 variable "nlb_create" {
   type        = bool
   description = "Create a network load balancer?"
