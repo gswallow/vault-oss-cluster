@@ -69,7 +69,7 @@ ui                                  = true
 disable_mlock                       = true
 cluster_addr                        = "http://$${MY_IP}:8201"
 cluster_name                        = "$${VAULT_CLUSTER_ID}"
-api_addr                            = "http://$${MY_IP}:8200"
+api_addr                            = "https://$${MY_IP}:8200"
 enable_response_header_hostname     = true
 enable_response_header_raft_node_id = true
 
