@@ -38,6 +38,14 @@ resource "aws_security_group" "vault" {
     self        = true
   }
 
+  ingress {
+    description = "Allow health checks"
+    from_port   = 8202
+    to_port     = 8202
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]
+  }
+
   egress {
     description = "Allow outbound"
     from_port   = 0
@@ -148,6 +156,24 @@ resource "aws_iam_role_policy" "vault_create_iam_users" {
         ]
         Effect   = "Allow"
         Resource = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:user/vault-*"]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "assume_third_party_account_role_policy" {
+  count = length(var.vault_third_party_account_roles) > 0 ? 1 : 0
+  name = "${local.prefix}-${var.vault_cluster_id}-assume-role-third-party-accounts"
+  role = aws_iam_role.vault.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action   = [
+          "sts:Assumerole"
+        ]
+        Effect   = "Allow"
+        Resource = var.vault_third_party_account_roles
       }
     ]
   })
@@ -266,6 +292,11 @@ resource "aws_lb_target_group" "vault" {
   port     = 8200
   protocol = "TCP"
   vpc_id   = data.aws_vpc.selected.id
+
+  health_check {
+    port = 8202
+    protocol = "TCP"
+  }
 }
 
 resource "aws_lb_listener" "vault" {
