@@ -35,12 +35,13 @@ replica_region=$${replica_region:=us-west-2}
 
 function create_or_update_secret() {
   region=$1
+  res=0
   aws secretsmanager create-secret \
    --name /vault/init/$${VAULT_CLUSTER_FQDN} \
    --secret-string "'$(cat $${TEMPDIR}/$${VAULT_CLUSTER_FQDN}-init.json)'" \
-   --region $region || :
-  if [ $? -eq 255 ]; then
-    hash=$(echo $RANDOM | md5sum)
+   --region $region || res=$?
+  if [ $res -eq 255 ]; then
+    hash=$(echo $RANDOM | md5sum | cut -d' ' -f 1)
     aws secretsmanager put-secret-value \
      --client-request-token $hash \
      --secret-string "'$(cat $${TEMPDIR}/$${VAULT_CLUSTER_FQDN}-init.json)'" \
@@ -88,6 +89,12 @@ listener "tcp" {
   tls_cert_file                      = "/opt/vault/tls/tls.crt"
   tls_key_file                       = "/opt/vault/tls/tls.key"
   tls_require_and_verify_client_cert = false
+}
+
+# health check
+listener "tcp" {
+  address     = "0.0.0.0:8202"
+  tls_disable = true
 }
 
 seal "awskms" {
@@ -229,9 +236,16 @@ if ( ! vault operator init -status ); then
     done
 
     if [ $? -eq 0 ]; then
-      create_or_update_secret $AWS_REGION \
-      && create_or_update_secret $replica_region \
-      && rm -rf $${TEMPDIR}
+      create_or_update_secret $AWS_REGION
+      if [ $? -eq 0 ]; then
+        create_or_update_secret $replica_region
+        if [ $? -eq 0 ]; then
+          rm -fv $${TEMPDIR}/*
+          rmdir $${TEMPDIR}
+        fi
+      else
+        create_or_update_secret $replica_region
+      fi
     fi
   fi
 fi
