@@ -6,3 +6,7 @@ output "ssh_private_key" {
 output "ca_cert_pem" {
   value     = tls_self_signed_cert.ca.cert_pem
 }
+
+output "vault_url" {
+  value     = "https://${aws_route53_record.vault.0.fqdn}:8200"
+}
