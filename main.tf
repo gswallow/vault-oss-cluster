@@ -363,7 +363,7 @@ resource "aws_ssm_parameter" "cloudwatch_config" {
 
 resource "aws_cloudwatch_metric_alarm" "vault_process" {
   count                     = var.monitor_vault_processes ? var.vault_cluster_node_count : 0
-  alarm_name                = "${local.prefix}-${var.vault_cluster_id}-${count.index}-vault-process-alarm"
+  alarm_name                = "${local.prefix}-${var.vault_cluster_id}-${count.index}-vault-process-not-running"
   comparison_operator       = "LessThanThreshold"
   evaluation_periods        = 1
   datapoints_to_alarm       = 1
@@ -388,7 +388,7 @@ resource "aws_cloudwatch_metric_alarm" "vault_process" {
 
 resource "aws_cloudwatch_metric_alarm" "disks" {
   count                     = var.monitor_vault_disk_usage ? var.vault_cluster_node_count : 0
-  alarm_name                = "${local.prefix}-${var.vault_cluster_id}-${count.index}-vault-root-volume-alarm"
+  alarm_name                = "${local.prefix}-${var.vault_cluster_id}-${count.index}-vault-root-volume-full"
   comparison_operator       = "GreaterThanOrEqualToThreshold"
   evaluation_periods        = 5
   datapoints_to_alarm       = 5
@@ -397,7 +397,7 @@ resource "aws_cloudwatch_metric_alarm" "disks" {
   period                    = 60
   statistic                 = "Average"
   threshold                 = 80
-  alarm_description         = "Checks that the vault process is running"
+  alarm_description         = "Checks that the root volume is not full"
   insufficient_data_actions = []
   treat_missing_data        = "notBreaching"
   dimensions = {
