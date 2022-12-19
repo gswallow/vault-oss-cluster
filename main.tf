@@ -100,12 +100,12 @@ resource "aws_iam_role_policy" "store_vault_unseal_keys" {
     Version = "2012-10-17",
     Statement = [
       {
-        Action   = [
+        Action = [
           "secretsmanager:CreateSecret",
           "secretsmanager:PutSecretValue",
           "secretsmanager:ReplicateSecretToRegions"
         ]
-        Effect   = "Allow"
+        Effect = "Allow"
         Resource = [
           "arn:${data.aws_partition.current.partition}:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:/vault/init/*",
           "arn:${data.aws_partition.current.partition}:secretsmanager:${var.replica_region}:${data.aws_caller_identity.current.account_id}:secret:/vault/init/*"
@@ -163,13 +163,13 @@ resource "aws_iam_role_policy" "vault_create_iam_users" {
 
 resource "aws_iam_role_policy" "assume_third_party_account_role_policy" {
   count = length(var.vault_third_party_account_roles) > 0 ? 1 : 0
-  name = "${local.prefix}-${var.vault_cluster_id}-assume-role-third-party-accounts"
-  role = aws_iam_role.vault.id
+  name  = "${local.prefix}-${var.vault_cluster_id}-assume-role-third-party-accounts"
+  role  = aws_iam_role.vault.id
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [
       {
-        Action   = [
+        Action = [
           "sts:Assumerole"
         ]
         Effect   = "Allow"
@@ -177,6 +177,28 @@ resource "aws_iam_role_policy" "assume_third_party_account_role_policy" {
       }
     ]
   })
+}
+
+resource "aws_iam_role_policy" "cloudwatch_config_parameter_store" {
+  name = "${local.prefix}-${var.vault_cluster_id}-get-cloudwatch-config-parameter"
+  role = aws_iam_role.vault.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "ssm:GetParameter"
+        ]
+        Effect   = "Allow"
+        Resource = aws_ssm_parameter.cloudwatch_config.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
+  role       = aws_iam_role.vault.id
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 resource "aws_launch_template" "vault" {
@@ -196,7 +218,8 @@ resource "aws_launch_template" "vault" {
       tls_cert_country_name        = var.tls_cert_country_name,
       tls_cert_state_province_name = var.tls_cert_state_province_name,
       tls_cert_locality_name       = var.tls_cert_locality_name,
-      replica_region               = var.replica_region
+      replica_region               = var.replica_region,
+      parameter_store_name         = aws_ssm_parameter.cloudwatch_config.name
   }))
 
   block_device_mappings {
@@ -294,7 +317,7 @@ resource "aws_lb_target_group" "vault" {
   vpc_id   = data.aws_vpc.selected.id
 
   health_check {
-    port = 8202
+    port     = 8202
     protocol = "TCP"
   }
 }
@@ -324,4 +347,41 @@ resource "aws_route53_record" "vault" {
   }
 }
 
+resource "aws_ssm_parameter" "cloudwatch_config" {
+  name = "${local.prefix}-${var.vault_cluster_id}-cloudwatch-config"
 
+  type = "String"
+  value = templatefile("${path.cwd}/templates/cloudwatch-config-json.tpl",
+    {
+      organization = var.org,
+      environment  = var.env,
+      project      = var.project,
+      cluster_id   = var.vault_cluster_id
+    }
+  )
+}
+
+resource "aws_cloudwatch_metric_alarm" "vault_process" {
+  count                     = var.vault_cluster_node_count
+  alarm_name                = "${local.prefix}-${var.vault_cluster_id}-${count.index}-vault-process-alarm"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = 1
+  datapoints_to_alarm       = 1
+  metric_name               = "procstat_lookup_pid_count"
+  namespace                 = "${var.org}/${var.env}/${var.project}/CWAgent"
+  period                    = 60
+  statistic                 = "Minimum"
+  threshold                 = 1
+  alarm_description         = "Checks that the vault process is running"
+  insufficient_data_actions = []
+  treat_missing_data        = "breaching"
+  dimensions = {
+    "AutoScalingGroupName" = aws_autoscaling_group.vault_node[count.index].name
+    "Organization"         = var.org
+    "Environment"          = var.env
+    "Project"              = var.project
+    "ClusterId"            = var.vault_cluster_id
+    "pattern"              = "/usr/bin/vault"
+    "pid_finder"           = "native"
+  }
+}
