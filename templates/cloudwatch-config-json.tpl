@@ -49,6 +49,7 @@
 					"rpc_pipefs",
 					"hugetlbfs"
 				],
+        "drop_device": true,
 				"append_dimensions": {
 					"Organization": "${organization}",
 					"Environment": "${environment}",

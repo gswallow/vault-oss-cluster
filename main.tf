@@ -385,3 +385,28 @@ resource "aws_cloudwatch_metric_alarm" "vault_process" {
     "pid_finder"           = "native"
   }
 }
+
+resource "aws_cloudwatch_metric_alarm" "disks" {
+  count                     = var.monitor_vault_disk_usage ? var.vault_cluster_node_count : 0
+  alarm_name                = "${local.prefix}-${var.vault_cluster_id}-${count.index}-vault-root-volume-alarm"
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = 5
+  datapoints_to_alarm       = 5
+  metric_name               = "disk_used_percent"
+  namespace                 = "${var.org}/${var.env}/${var.project}/CWAgent"
+  period                    = 60
+  statistic                 = "Average"
+  threshold                 = 80
+  alarm_description         = "Checks that the vault process is running"
+  insufficient_data_actions = []
+  treat_missing_data        = "notBreaching"
+  dimensions = {
+    "AutoScalingGroupName" = aws_autoscaling_group.vault_node[count.index].name
+    "Organization"         = var.org
+    "Environment"          = var.env
+    "Project"              = var.project
+    "ClusterId"            = var.vault_cluster_id
+    "fstype"               = "xfs"
+    "path"                 = "/"
+  }
+}
