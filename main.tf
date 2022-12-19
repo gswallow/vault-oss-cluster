@@ -362,7 +362,7 @@ resource "aws_ssm_parameter" "cloudwatch_config" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "vault_process" {
-  count                     = var.vault_cluster_node_count
+  count                     = var.monitor_vault_processes ? var.vault_cluster_node_count : 0
   alarm_name                = "${local.prefix}-${var.vault_cluster_id}-${count.index}-vault-process-alarm"
   comparison_operator       = "LessThanThreshold"
   evaluation_periods        = 1
