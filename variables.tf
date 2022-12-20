@@ -166,6 +166,18 @@ variable "route53_use_public_zone" {
   default     = true
 }
 
+variable "monitor_vault_processes" {
+  type        = bool
+  description = "Set up AWS Cloudwatch alarms that trigger when a vault process is not running"
+  default     = true
+}
+
+variable "monitor_vault_disk_usage" {
+  type        = bool
+  description = "Set up AWS Cloudwatch alarms that trigger when a filesystem is getting full"
+  default     = true
+}
+
 locals {
   prefix             = replace(lower("${var.org}-${var.env}-${var.project}"), "_", "-")
   tls_cert_org       = var.tls_cert_org == null ? var.org : var.tls_cert_org

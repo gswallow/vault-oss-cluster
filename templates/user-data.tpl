@@ -55,8 +55,8 @@ function create_or_update_secret() {
 ########################################
 yum install -y yum-utils
 yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
-yum -y install vault
-yum -y update
+yum install -y vault
+yum update -y
 
 mkdir -p 0700 /var/lib/vault/data
 chown -R vault:vault /var/lib/vault/data
@@ -212,6 +212,7 @@ rm -f /tmp/ca.crt /tmp/ca.key /tmp/openssl-san.cnf /tmp/tls.crt \
 ########################################
 # Make life easier for admins
 ########################################
+yum install -y jq
 echo "export VAULT_CAPATH=/opt/vault/tls/ca.crt" >> /etc/profile.d/vault.sh \
  && chmod 755 /etc/profile.d/vault.sh
 
@@ -249,3 +250,14 @@ if ( ! vault operator init -status ); then
     fi
   fi
 fi
+
+
+########################################
+# Add AWS Cloudwatch Agent
+########################################
+yum install -y amazon-cloudwatch-agent
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+ -a fetch-config \
+ -c ssm:${parameter_store_name} \
+ -m ec2 \
+ -s
