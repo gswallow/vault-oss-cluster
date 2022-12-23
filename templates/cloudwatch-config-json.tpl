@@ -6,8 +6,9 @@
 	"metrics": {
 		"namespace": "${organization}/${environment}/${project}/CWAgent",
 		"aggregation_dimensions": [
-			[ "Organization", "Environment", "Project", "ClusterId", "AutoScalingGroupName" ],
-			[ "AutoScalingGroupName" ]
+      [ "Organization", "Environment", "Project", "ClusterId", "AutoScalingGroupName" ],
+      [ "AutoScalingGroupName" ],
+      [ "InstanceId" ]
 		],
 		"append_dimensions": {
 			"AutoScalingGroupName": "$${aws:AutoScalingGroupName}"
