@@ -40,9 +40,9 @@ variable "security_group_allow_ssh_cidr" {
   default     = ["0.0.0.0/0"]
 }
 
-variable "security_group_allow_https_8200_cidr" {
+variable "security_group_allow_http_8200_cidr" {
   type        = list(string)
-  description = "A list of CIDR blocks to allow SSH access"
+  description = "A list of CIDR blocks to allow direct Vault access"
   default     = ["0.0.0.0/0"]
 }
 
@@ -166,6 +166,12 @@ variable "route53_use_public_zone" {
   default     = true
 }
 
+variable "cert_validation_method" {
+  type        = string
+  description = "The way we will validate cert requests.  May be 'DNS' or 'EMAIL'"
+  default     = "DNS"
+}
+
 variable "monitor_vault_processes" {
   type        = bool
   description = "Set up AWS Cloudwatch alarms that trigger when a vault process is not running"
@@ -179,10 +185,11 @@ variable "monitor_vault_disk_usage" {
 }
 
 locals {
-  prefix             = replace(lower("${var.org}-${var.env}-${var.project}"), "_", "-")
-  tls_cert_org       = var.tls_cert_org == null ? var.org : var.tls_cert_org
-  vault_cluster_fqdn = var.vault_cluster_fqdn == null ? "vault-${var.vault_cluster_id}.${var.env}.${var.tls_cert_domain}" : var.vault_cluster_fqdn
-  nlb_subnet_tag     = var.nlb_subnet_tag == {} ? var.vault_subnet_tag : var.nlb_subnet_tag
+  prefix                 = replace(lower("${var.org}-${var.env}-${var.project}"), "_", "-")
+  tls_cert_org           = var.tls_cert_org == null ? var.org : var.tls_cert_org
+  vault_cluster_fqdn     = var.vault_cluster_fqdn == null ? "vault-${var.vault_cluster_id}.${var.env}.${var.tls_cert_domain}" : var.vault_cluster_fqdn
+  nlb_subnet_tag         = var.nlb_subnet_tag == {} ? var.vault_subnet_tag : var.nlb_subnet_tag
+  cert_validation_method = var.route53_use_public_zone ? var.cert_validation_method : "EMAIL"
   tags = merge({
     "Organization:environment" = var.env,
     "Organization:name"        = var.org,

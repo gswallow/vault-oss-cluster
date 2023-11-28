@@ -23,11 +23,19 @@ resource "aws_security_group" "vault" {
   }
 
   ingress {
-    description = "Allow Vault HTTPS"
+    description = "Allow HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [ "0.0.0.0/0" ]
+  }
+
+  ingress {
+    description = "Allow Vault HTTP"
     from_port   = 8200
     to_port     = 8200
     protocol    = "tcp"
-    cidr_blocks = var.security_group_allow_https_8200_cidr
+    cidr_blocks = var.security_group_allow_http_8200_cidr
   }
 
   ingress {
@@ -53,6 +61,44 @@ resource "aws_security_group" "vault" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+resource "aws_acm_certificate" "vault" {
+  count             = var.route53_create_record ? var.nlb_create ? 1 : 0 : 0
+  domain_name       = local.vault_cluster_fqdn
+  validation_method = local.cert_validation_method
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "vault_email" {
+  count = local.cert_validation_method == "EMAIL" ? 1 : 0 
+  certificate_arn = aws_acm_certificate.vault.arn
+}
+
+resource "aws_route53_record" "validation" {
+  for_each = local.cert_validation_method == "DNS" && var.route53_use_public_zone ? {
+    for dvo in aws_acm_certificate.vault.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    } : {}
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.selected.0.id
+}
+
+resource "aws_acm_certificate_validation" "vault_dns" {
+  count                   = local.cert_validation_method == "DNS" && var.route53_use_public_zone ? 1 : 0
+  certificate_arn         = aws_acm_certificate.vault.arn
+  validation_record_fqdns = [for record in aws_route53_record.validation[0] : record.fqdn]
 }
 
 resource "aws_iam_instance_profile" "vault" {
